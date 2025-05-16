@@ -175,8 +175,6 @@ cython_debug/
 
 # Our own ignore for privacy protection
 .DS_Store
-captcha/raw
-captcha/inpaint
-data
-coco
-tmp
+configs/credential.py
+cookies/*
+!cookies/.gitkeep

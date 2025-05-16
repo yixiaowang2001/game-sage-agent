@@ -1,0 +1,2 @@
+IS_DEBUG = False
+CUDA_AVAILABLE = False

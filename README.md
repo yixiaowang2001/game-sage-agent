@@ -1,156 +1,102 @@
 # GameSage
 
-## TODO
-1. Platform crawler (Bilibili)  
-2. Integrate LangChain or CrewAI (experiment)
+## 1 Process Structure
 
-## Progress
+### 1.1 Data Flow Structure Diagram
 
-| **Main Task**     | **Category** | **Owner** | **Current Progress**                                  |
-|-------------------|--------------|-----------|--------------------------------------------------------|
-| Agent MVP         | Function     | wyx       | ![100%](https://progress-bar.xyz/100)                 |
-| Bilibili Crawler  | Component    | qz        | ![33%](https://progress-bar.xyz/33)                   |
-| LangChain Integration | Framework | wyx       | ![1%](https://progress-bar.xyz/1)                     |
-
-## Tasks
-
-- Crawler / Plugin
-  - [ ] Bilibili - qz  
-- Agent
-  - [X] MVP - wyx  
-  - [ ] Integrate ReAct structure - wyx  
-
-## Usage
-
-1. Get LLM API key from: https://cloud.siliconflow.cn/account/ak
-
-## Notes
-
-### MVP Extensions
-
-1. Attempt LangChain or CrewAI integration  
-2. Add more platform plugins (e.g., NGA)  
-3. Enable multi-agent collaboration  
-- Add a **query suggestion tool** to optimize search terms per platform  
-  - Query expansion: e.g., when comparing WoW healers, AI adds related healing terms  
-
-### Core Platforms (by importance)
-1. Bilibili (comments, video ASR)  
-2. Zhihu  
-3. NGA  
-4. Baidu Tieba  
-5. GamerSky  
-6. Xiaoheihe  
-7. TapTap (mobile games)
-
----
-
-## Overall Strategy: Agent-based Multi-turn Reasoning + Plugin-driven Platform Routing  
-**(Hybrid ReAct-Plugin Strategy)**
-
----
-
-### Main Objective:
-To build an LLM-driven, plugin-based system for intelligent game guide retrieval, extraction, correction, and answering—across multiple platforms. It supports task decomposition and tool invocation, and can gradually evolve into a **multi-agent collaboration system**.
-
----
-
-### I. System Architecture
-
-```
-+-----------------------------+
-|        User Query           |
-+-----------------------------+
-              |
-              v
-+-----------------------------+
-|     Main Agent Module       |   <- Core 1 (ReAct)
-|   - Multi-turn reasoning    |
-|   - Tool orchestration      |
-+-----------------------------+
-              |
-              v
-+-----------------------------+
-|    Tool Selection & Calls   |
-| - SearchTool                |
-| - WebExtractor (ASR)        |
-| - Summarizer                |
-+-----------------------------+
-              |
-              v
-+-----------------------------+
-|   Plugin-based Platform     |   <- Core 2 (Platform Routing)
-|   - Route query by intent   |
-|   - Plugin modules per site |
-+-----------------------------+
-              |
-              v
-+-----------------------------+
-|       Final Answer          |
-+-----------------------------+
+```text
+                 Query from user
+                       |
+                     Router
+         ┌─────────────┼─────────────┐
+         ↓             ↓             ↓
+     ┌───────┐     ┌───────┐     ┌───────┐
+     │Plugin1│     │Plugin2│ ... │PluginN│
+     └───────┘     └───────┘     └───────┘
+         ↓             ↓             ↓
+ ┌────────────┐ ┌────────────┐ ┌────────────┐
+ │Summarizer1 │ │Summarizer2 │ │SummarizerN │
+ └────────────┘ └────────────┘ └────────────┘
+         \             |             /
+          \            |            /
+           \           |           /
+            └── Final Summarizer ──┘
+                       |
+                     Output
 ```
 
----
+### 1.2 Module Description
 
-### II. Design Philosophy
+- **Query from user**  
+  Query requests from users.
 
-#### 1. LLM as the Decision Core (Agent Controller)
-- Uses ReAct-style prompts (Thought + Action + Action Input in JSON)
-- Receives Observation from tool and continues reasoning
-- Supports multi-step reasoning, retry, self-critique
+- **Router (LLM Based)**  
+  Uses Large Language Model (LLM) to format questions and decide which plugins need to be called to process the request.
 
-#### 2. Tool Modules (Executors)
-- **SearchTool**: DuckDuckGo/Serper API with `site:` keyword support  
-- **WebExtractor**: Bilibili video-to-ASR (Whisper)  
-- **ASRCorrector**: Fixes terminology errors in ASR results  
-- **Summarizer**: Combines answers from multiple sources  
+- **Plugin1 ... PluginN (Code Based)**  
+  Multiple plugins retrieve information according to routing instructions.
 
-#### 3. Plugin-based Platform Adapter (Strategy 4)
-- Each platform is implemented as a plugin: search + extraction logic  
-- Agent can specify platform via `site:` keyword or game type  
-- Plugins reuse common tools (e.g., WebExtractor for videos)  
-- Supports fallback to generic search if plugin fails  
+- **Summarizer1 ... SummarizerN (LLM Based)**  
+  Information returned from each plugin is summarized by respective summarizers.
 
-#### 4. Multi-agent Collaboration (Future)
-- **Planner Agent**: decomposes tasks  
-- **Executor Agent**: invokes tools  
-- **Critic Agent** (optional): evaluates steps, suggests retries
+- **Final Summarizer (LLM Based)**  
+  Aggregates summaries returned by various plugins to generate the final output.
 
----
+- **Output**  
+  Displays the final result to the user.
 
-### III. Technology Stack
+### 1.3 Process Key Points
 
-| Module         | Recommendation                          |
-|----------------|------------------------------------------|
-| Agent Logic    | Custom Agent Loop → LangGraph/CrewAI later |
-| LLM API        | OpenAI / SiliconFlow / Local LLM wrapper |
-| Tool System    | Standardized `Tool.run(input)` classes  |
-| Plugins        | Modular, e.g., `plugin_bilibili.py`     |
-| Prompt Format  | JSON outputs to reduce hallucination     |
+- LLM formats questions and decides which plugins to call  
+- Plugins are responsible for information retrieval  
+- Multi-level summarizers are responsible for integrating information  
+- Final unified output answers the user's request
 
----
+## 2 How to Start
 
-### IV. Advantages
+1. Install the requirements.txt environment.
+2. Log in to SiliconFlow and register to get an API: https://www.siliconflow.com/en/home. Put your API key under `configs/credential.py`.
+3. Run `utils/cookies_tool.py`, log in to your Bilibili account, and save cookies.
+4. In `core/agent.py`, enter your questions in test_queries and run the program.
 
-| Method 2 (ReAct) | Method 4 (Plugins) | Hybrid Benefits |
-|------------------|--------------------|------------------|
-| LLM can reason   | Platform-specific logic | Intelligent + modular |
-| Flexible tools   | Maintainable plugins | Low-cost extensibility |
-| ReAct chaining   | Per-platform optimization | Evolves into multi-agent |
+## 3 Notes
 
----
+1. Currently, the project does not support custom APIs, so a SiliconFlow API is required.
+2. Users need to have a Bilibili account.
+3. Due to LLM translation issues, the accuracy for English queries and English output results may not be sufficient.
+4. The project is currently being refactored, and the code will be gradually updated.
 
-### V. Application Scenarios
+## 4 Code Structure
 
-- Game advice: class selection, gear optimization, mechanic breakdown  
-- ASR noise-tolerant QA (especially with video content)  
-- Multi-source content fusion (forums, videos, comments)  
-- Open-source LLM demos, educational tools, multi-agent research
-
----
-
-**Future Work Ideas**  
-- Caching frequently asked queries  
-- Query rewriter for vague questions  
-- User persona adaptation (beginner vs veteran)  
-- Tool invocation logging for research/debugging
+```
+game-sage_backup
+├── README.md
+├── configs
+│   ├── credential.py     
+│   ├── global_config.py
+│   ├── llm_config.py
+│   ├── logger_config.py
+│   ├── tool_config.py
+│   └── utils_config.py
+├── core
+│   ├── __init__.py
+│   ├── agent.py
+│   ├── chains.py
+│   └── llm.py
+├── prompts
+│   ├── __init__.py
+│   ├── agent_prompts.py
+│   ├── summarizer_prompts.py
+│   └── utils_prompts.py
+├── tools
+│   ├── bilibili_tool.py
+│   ├── nga_tool.py
+│   └── tieba_tool.py
+└── utils
+    ├── bilibili_utils
+    │   ├── comments_crawler.py
+    │   ├── searcher.py
+    │   └── video_info_extractor.py
+    ├── cookies_tool.py
+    └── parsers.py
+```
